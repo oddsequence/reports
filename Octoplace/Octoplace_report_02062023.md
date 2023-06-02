@@ -56,7 +56,7 @@ Commit | Note
 --- | ---
 c374bec00a1c7cef4adbd1d1e9d323ceed44a91b  | Start of the audit commit
 
-All smart contract files and tests:
+All smart contract files and tests: 
 https://github.com/OCTOplace/octoplace-contracts/commit/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b
 
 
