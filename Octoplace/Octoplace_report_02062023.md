@@ -4,6 +4,10 @@
 
 ## INTRODUCTION
 
+### ABOUT ODDSEQUENCE
+
+OddSequence is a blockchain security team with the strong experience in researching DeFi projects and performing security audits.
+
 ### DISCLAMER
 
 The audit does not provide any guarantees or assurances regarding the code's usefulness, code safety, suitability of the business model, investment advice, endorsement of the platform or its products, regulatory framework for the business model, or any other statements regarding the contracts' fitness for purpose or their bug-free status. The audit documentation is intended for discussion purposes only. The information presented in this report is both confidential and privileged. By reading this report, you agree to maintain its confidentiality and not to copy, disclose, or distribute it without the Client's agreement. If you are not the intended recipient(s) of this document, please be aware that any disclosure, copying, or distribution of its contents is strictly prohibited.
@@ -56,8 +60,7 @@ Commit | Note
 --- | ---
 c374bec00a1c7cef4adbd1d1e9d323ceed44a91b  | Start of the audit commit
 
-All smart contract files and tests: 
-
+All smart contract files and tests:
 https://github.com/OCTOplace/octoplace-contracts/commit/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b
 
 
@@ -68,14 +71,48 @@ https://github.com/OCTOplace/octoplace-contracts/commit/c374bec00a1c7cef4adbd1d1
 
 Finding | Severity | Status | Description 
 --- | --- | --- | ---
-1 | High | New | Extra native tokens paid for listing can be stuck on the contract
-2 | Medium | New | Potentially disabled getters in SwapData
-3 | Medium | New | Approval checks for NFTs are easy to bypass
+C1 | Critical | New | Anyone can spam the marketplace with fake offers and delete real bids
+H1 | High | New | Extra native tokens paid for listing can be stuck on the contract
+M1 | Medium | New | Potentially disabled getters in SwapData
+M2 | Medium | New | Approval checks for NFTs are easy to bypass
+L1 | Low | New | Superadmin transition does not follow two-step procedure
 
 ### Detailed description
 
+### [C1] CRITICAL. Anyone can spam the marketplace with fake offers and delete real bids
 
-### [1] HIGH. Extra native tokens paid for listing can be stuck on the contract.
+`Octoplace.createMarketItemOfferTNT20()` function allows anyone to make offers for some listed NFT.
+- https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L357
+
+
+But offers do not require real payment with tokens - the function just checks that the allowance given to the marketplace is above previous highest offer.
+In this case, the highest bid is updated and the caller gets stored as an active bidder / winner
+```
+    idToMarketItem[itemId].highestOffer = offerPrice;
+    idToMarketItem[itemId].bidder = payable(msg.sender);
+```
+In addition, previous successful bidder is deleted.
+
+Then, when seller accepts offer (`acceptMarketItemOfferTNT20()`), it checks that the active bidder still has approval given to the marketplace. If it is not, the contract just nulifies the storage for the winning bidder.
+- https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L376-L391
+
+This is the scenario anyone can exploit to break offers with no cost.
+Anyone can:
+1) Give high approval
+2) Call createMarketItemOfferTNT20() with the new highest bid
+3) Revoke approval
+
+It can be made in one simple transaction. And all previous bidders will have to make new offers.
+
+#### Recommendation
+
+We recommend taking real tokens from bidders and return them if a new highest bid is made.
+
+---
+
+
+
+### [H1] HIGH. Extra native tokens paid for listing can be stuck on the contract.
 
 SwapNFT contract has the function createListing() which accepts some Native token as payment for listing.
 - https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/SwapNFT.sol#L50
@@ -102,7 +139,7 @@ The easiest solution is if `listing.transactionCharge`stores `msg.value`.
 ---
 
 
-### [2] MEDIUM. Potentially disabled getters in SwapData.
+### [M1] MEDIUM. Potentially disabled getters in SwapData.
 
 SwapData contract has getters that iterate through mappings `listings`, `swapOffers`, `trades`:
 - `readAllListings()`
@@ -120,15 +157,42 @@ If the functions are used for off-chain data extraction we recommend introducing
 
 ---
 
-### [3] MEDIUM. Approval checks for NFTs are easy to bypass
+### [M2] MEDIUM. Approval checks for NFTs are easy to bypass
 
 SwapData in two functions for parties checks that a token owner gave an approval to SwapData contract.
 - https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/SwapNFT.sol#L88-L95
 - https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/SwapNFT.sol#L55-L63
-- 
+
 First, it is easy to bypass this check: to give approval, call SwapData contract, to revoke approval. But still `acceptOffer()` would later require approvals from both parties to execute `transferFrom` and revert if something is wrong.
 Second, the worst case is if an NFT contract does not revert on `transferFrom()` when there is no approval. It would parties to scam each other.
 
 #### Recommendation
 
 One of the options is to check in `acceptOffer()` that receivers of NFTs  turn owners of their new NFTs, and revert if someone is not.
+
+---
+
+
+### [L1] LOW. Superadmin transition does not follow two-step procedure
+
+Octoplace has superadmin role, which can be transferred via `setSuperAdmin()`
+- https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L187-L189
+
+It changes the role to the inputted address without checks. 
+
+#### Recommendation
+
+The good practice is requiring non-zero address and introducing a new function for a new superadmin to accept the role.
+
+---
+
+### [L2] LOW. Typo breaking compilation
+
+Octoplace contract cannot compile due to syntax error. ";" symbol is required at the end of the line.
+- https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L539-L542
+The same thing for the flat version.
+- https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace_FLAT.sol#L2121-L2123
+
+#### Recommendation
+
+To fix the syntax error
