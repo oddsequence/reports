@@ -6,7 +6,7 @@
 
 ### ABOUT ODDSEQUENCE
 
-OddSequence is a blockchain security team with the strong experience in researching DeFi projects and performing security audits.
+OddSequence is a blockchain security team with broad experience in researching DeFi projects and performing security audits.
 
 ### DISCLAMER
 
