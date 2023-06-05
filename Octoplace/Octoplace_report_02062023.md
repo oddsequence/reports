@@ -85,7 +85,7 @@ L1 | Low | New | Superadmin transition does not follow two-step procedure
 - https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L357
 
 
-But offers do not require real payment with tokens - the function just checks that the allowance given to the marketplace is above previous highest offer.
+But offers do not require real payment with tokens - the function just checks that the allowance given to the marketplace is above the previous highest offer.
 In this case, the highest bid is updated and the caller gets stored as an active bidder / winner
 ```
     idToMarketItem[itemId].highestOffer = offerPrice;
@@ -93,7 +93,7 @@ In this case, the highest bid is updated and the caller gets stored as an active
 ```
 In addition, previous successful bidder is deleted.
 
-Then, when seller accepts offer (`acceptMarketItemOfferTNT20()`), it checks that the active bidder still has approval given to the marketplace. If it is not, the contract just nulifies the storage for the winning bidder.
+Then, when seller accepts offer (`acceptMarketItemOfferTNT20()`), the function checks that the active bidder still has approval given to the marketplace. If it is not, the contract just nulifies the storage for the winning bidder.
 - https://github.com/OCTOplace/octoplace-contracts/blob/c374bec00a1c7cef4adbd1d1e9d323ceed44a91b/contracts/Octoplace.sol#L376-L391
 
 This is the scenario anyone can exploit to break offers with no cost.
@@ -102,7 +102,7 @@ Anyone can:
 2) Call createMarketItemOfferTNT20() with the new highest bid
 3) Revoke approval
 
-It can be made in one simple transaction. And all previous bidders will have to make new offers.
+It can be made in one simple transaction. And all previous bidders will have to make new offers and seller will not be able to accept previous real bids.
 
 #### Recommendation
 
